@@ -106,6 +106,13 @@
                 <version>2.5.3</version>
             </plugin>
         </plugins>
+        <extensions>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-webdav-jackrabbit</artifactId>
+                <version>2.10</version>
+            </extension>
+        </extensions>
     </build>
 
 </project>
