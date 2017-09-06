@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>dk.kmd</groupId>
     <artifactId>prometheus-hystrix</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <name>prometheus-hystrix-metrics-publisher</name>
     <description>This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.
     </description>
@@ -40,7 +40,7 @@
     </issueManagement>
     <scm>
         <connection>scm:git:https://github.com/avaleo/prometheus-hystrix.git</connection>
-        <tag>HEAD</tag>
+        <tag>prometheus-hystrix-1.0.1</tag>
     </scm>
     <dependencies>
         <dependency>
