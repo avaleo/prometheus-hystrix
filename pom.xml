@@ -40,10 +40,8 @@
     </issueManagement>
     <scm>
         <connection>scm:git:git@github.com:avaleo/prometheus-hystrix.git</connection>
-        <developerConnection>scm:git:git@github.com:avaleo/prometheus-hystrix.git</developerConnection>
-        <url>scm:git:git@github.com:avaleo/prometheus-hystrix.git</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
     <dependencies>
         <dependency>
             <groupId>io.prometheus</groupId>
@@ -89,19 +87,15 @@
         </dependency>
     </dependencies>
     <distributionManagement>
-        <!--
         <repository>
-            <id>bintray</id>
-            <url>https://api.bintray.com/maven/ahus1/maven/prometheus-hystrix</url>
-        </repository>
-        -->
-        <repository>
-            <id>sonatypeosssnapshot</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>avaleo-repository</id>
+            <url>dav:http://build.avaleo.net/maven</url>
+            <uniqueVersion>false</uniqueVersion>
         </repository>
         <snapshotRepository>
-            <id>sonatypeosssnapshot</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <id>avaleo-snapshot-repository</id>
+            <url>dav:http://build.avaleo.net/maven-snapshot</url>
+            <uniqueVersion>true</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>
     <build>
