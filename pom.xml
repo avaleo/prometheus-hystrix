@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>de.ahus1.prometheus.hystrix</groupId>
+    <groupId>dk.kmd</groupId>
     <artifactId>prometheus-hystrix</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>prometheus-hystrix-metrics-publisher</name>
-    <description>This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java
-        client.
+    <description>This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.
     </description>
-    <url>https://github.com/ahus1/prometheus-hystrix</url>
+    <url>https://github.com/avaleo/prometheus-hystrix</url>
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
@@ -31,8 +30,8 @@
         </developer>
     </developers>
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <issueManagement>
@@ -40,28 +39,28 @@
         <url>https://github.com/ahus1/prometheus-hystrix/issues</url>
     </issueManagement>
     <scm>
-        <connection>scm:git:git@github.com:ahus1/prometheus-hystrix.git</connection>
-        <developerConnection>scm:git:git@github.com:ahus1/prometheus-hystrix.git</developerConnection>
-        <url>scm:git:git@github.com:ahus1/prometheus-hystrix.git</url>
+        <connection>scm:git:git@github.com:avaleo/prometheus-hystrix.git</connection>
+        <developerConnection>scm:git:git@github.com:avaleo/prometheus-hystrix.git</developerConnection>
+        <url>scm:git:git@github.com:avaleo/prometheus-hystrix.git</url>
       <tag>HEAD</tag>
   </scm>
     <dependencies>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient</artifactId>
-            <version>0.0.20</version>
+            <version>0.0.26</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_common</artifactId>
-            <version>0.0.20</version>
+            <version>0.0.26</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.netflix.hystrix</groupId>
             <artifactId>hystrix-core</artifactId>
-            <version>1.5.6</version>
+            <version>1.5.12</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -73,7 +72,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.6.2</version>
+            <version>2.1.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -14,11 +14,13 @@
 package com.soundcloud.prometheus.hystrix;
 
 import com.netflix.hystrix.*;
+import com.netflix.hystrix.metric.HystrixCommandCompletion;
 import com.netflix.hystrix.metric.HystrixCommandCompletionStream;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
+import rx.functions.Action1;
 
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -66,14 +68,29 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         delegate.initialize();
 
         String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
-        addGauge("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
+        addGauge("is_circuit_breaker_open", circuitDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.circuitBreaker.isOpen());
+            }
+        });
 
         String permitsDoc = "The number of executionSemaphorePermits in use right now.";
-        addGauge("execution_semaphore_permits_in_use", permitsDoc, metrics::getCurrentConcurrentExecutionCount);
+        addGauge("execution_semaphore_permits_in_use", permitsDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.metrics.getCurrentConcurrentExecutionCount();
+            }
+        });
 
         if (exportDeprecatedMetrics) {
             String errorsDoc = "Error percentage derived from current metrics.";
-            addGauge("error_percentage", "DEPRECATED: " + errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
+            addGauge("error_percentage", "DEPRECATED: " + errorsDoc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherCommand.this.metrics.getHealthCounts().getErrorPercentage();
+                }
+            });
 
             createCumulativeCountForEvent("count_emit", HystrixRollingNumberEvent.EMIT);
             createCumulativeCountForEvent("count_success", HystrixRollingNumberEvent.SUCCESS);
@@ -110,7 +127,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
             String latencyExecDoc = "DEPRECATED: Rolling percentiles of execution times for the "
                     + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-            addGauge("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
+            addGauge("latency_execute_mean", latencyExecDoc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherCommand.this.metrics.getExecutionTimeMean();
+                }
+            });
 
             createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecDoc);
             createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecDoc);
@@ -127,7 +149,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
                     + "aspects of overhead (including metrics capture itself).";
 
-            addGauge("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
+            addGauge("latency_total_mean", latencyTotalDoc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherCommand.this.metrics.getTotalTimeMean();
+                }
+            });
 
             createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDoc);
             createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDoc);
@@ -148,37 +175,40 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         String histogramLatencyExecDoc = "Execution times for the "
                 + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-        Histogram.Child histogramLatencyTotal = addHistogram("latency_total_seconds", histogramLatencyTotalDoc);
-        Histogram.Child histogramLatencyExecute = addHistogram("latency_execute_seconds", histogramLatencyExecDoc);
+        final Histogram.Child histogramLatencyTotal = addHistogram("latency_total_seconds", histogramLatencyTotalDoc);
+        final Histogram.Child histogramLatencyExecute = addHistogram("latency_execute_seconds", histogramLatencyExecDoc);
 
         // pre-allocate the counters for all possible events to have a clean start for the metrics
-        HashMap<HystrixEventType, Counter.Child> eventCounters = new HashMap<>();
+        final HashMap<HystrixEventType, Counter.Child> eventCounters = new HashMap<>();
         for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
             eventCounters.put(hystrixEventType, addCounter("event_total", "event", hystrixEventType.name().toLowerCase()));
         }
-        Counter.Child totalCounter = addCounter("total");
-        Counter.Child errorCounter = addCounter("error_total");
+        final Counter.Child totalCounter = addCounter("total");
+        final Counter.Child errorCounter = addCounter("error_total");
 
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
-                .subscribe(hystrixCommandCompletion -> {
-                    histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
-                    histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
-                    for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
-                        int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
-                        if (count > 0) {
-                            switch (hystrixEventType) {
-                                /** this list is derived from {@link HystrixCommandMetrics.HealthCounts.plus} */
-                                case FAILURE:
-                                case TIMEOUT:
-                                case THREAD_POOL_REJECTED:
-                                case SEMAPHORE_REJECTED:
-                                    errorCounter.inc(count);
-                                case SUCCESS:
-                                    totalCounter.inc(count);
-                                    break;
+                .subscribe(new Action1<HystrixCommandCompletion>() {
+                    @Override
+                    public void call(HystrixCommandCompletion hystrixCommandCompletion) {
+						histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
+						histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                        for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
+                            int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
+                            if (count > 0) {
+                                switch (hystrixEventType) {
+                                    /** this list is derived from {@link HystrixCommandMetrics.HealthCounts.plus} */
+                                    case FAILURE:
+                                    case TIMEOUT:
+                                    case THREAD_POOL_REJECTED:
+                                    case SEMAPHORE_REJECTED:
+                                        errorCounter.inc(count);
+                                    case SUCCESS:
+                                        totalCounter.inc(count);
+                                        break;
+                                }
+                                eventCounters.get(hystrixEventType).inc(count);
                             }
-                            eventCounters.get(hystrixEventType).inc(count);
                         }
                     }
                 });
@@ -190,62 +220,147 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     + "expected.";
 
             addGauge("property_value_rolling_statistical_window_in_milliseconds", propDesc,
-                    () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.metricsRollingStatisticalWindowInMilliseconds().get();
+                        }
+                    });
 
             addGauge("property_value_circuit_breaker_request_volume_threshold", propDesc,
-                    () -> properties.circuitBreakerRequestVolumeThreshold().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.circuitBreakerRequestVolumeThreshold().get();
+                        }
+                    });
 
             addGauge("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc,
-                    () -> properties.circuitBreakerSleepWindowInMilliseconds().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.circuitBreakerSleepWindowInMilliseconds().get();
+                        }
+                    });
 
             addGauge("property_value_circuit_breaker_error_threshold_percentage", propDesc,
-                    () -> properties.circuitBreakerErrorThresholdPercentage().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.circuitBreakerErrorThresholdPercentage().get();
+                        }
+                    });
 
             addGauge("property_value_circuit_breaker_force_open", propDesc,
-                    () -> booleanToNumber(properties.circuitBreakerForceOpen().get()));
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.properties.circuitBreakerForceOpen().get());
+                        }
+                    });
 
             addGauge("property_value_circuit_breaker_force_closed", propDesc,
-                    () -> booleanToNumber(properties.circuitBreakerForceClosed().get()));
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.properties.circuitBreakerForceClosed().get());
+                        }
+                    });
 
             addGauge("property_value_execution_timeout_in_milliseconds", propDesc,
-                    () -> properties.executionTimeoutInMilliseconds().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.executionTimeoutInMilliseconds().get();
+                        }
+                    });
 
             addGauge("property_value_execution_isolation_strategy", propDesc,
-                    () -> properties.executionIsolationStrategy().get().ordinal());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.executionIsolationStrategy().get().ordinal();
+                        }
+                    });
 
             addGauge("property_value_metrics_rolling_percentile_enabled", propDesc,
-                    () -> booleanToNumber(properties.metricsRollingPercentileEnabled().get()));
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.properties.metricsRollingPercentileEnabled().get());
+                        }
+                    });
 
             addGauge("property_value_request_cache_enabled", propDesc,
-                    () -> booleanToNumber(properties.requestCacheEnabled().get()));
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.properties.requestCacheEnabled().get());
+                        }
+                    });
 
             addGauge("property_value_request_log_enabled", propDesc,
-                    () -> booleanToNumber(properties.requestLogEnabled().get()));
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.booleanToNumber(HystrixPrometheusMetricsPublisherCommand.this.properties.requestLogEnabled().get());
+                        }
+                    });
 
             addGauge("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc,
-                    () -> properties.executionIsolationSemaphoreMaxConcurrentRequests().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.executionIsolationSemaphoreMaxConcurrentRequests().get();
+                        }
+                    });
 
             addGauge("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc,
-                    () -> properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return HystrixPrometheusMetricsPublisherCommand.this.properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get();
+                        }
+                    });
         }
     }
 
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "DEPRECATED: These are cumulative counts since the start of the application.";
-        addGauge(name, doc, () -> metrics.getCumulativeCount(event));
+        addGauge(name, doc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.metrics.getCumulativeCount(event);
+            }
+        });
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "DEPRECATED: These are \"point in time\" counts representing the last X seconds.";
-        addGauge(name, doc, () -> metrics.getRollingCount(event));
+        addGauge(name, doc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.metrics.getRollingCount(event);
+            }
+        });
     }
 
     private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
-        addGauge(name, documentation, () -> metrics.getExecutionTimePercentile(percentile));
+        addGauge(name, documentation, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.metrics.getExecutionTimePercentile(percentile);
+            }
+        });
     }
 
     private void createTotalTimePercentile(String name, final double percentile, String documentation) {
-        addGauge(name, documentation, () -> metrics.getTotalTimePercentile(percentile));
+        addGauge(name, documentation, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherCommand.this.metrics.getTotalTimePercentile(percentile);
+            }
+        });
     }
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
@@ -257,7 +372,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private Counter.Child addCounter(String metric, String... additionalLabels) {
-        Map<String, String> labels = new HashMap<>(this.labels);
+        Map<String, String> labels = new TreeMap<>(this.labels);
         labels.putAll(this.labels);
         Iterator<String> l = Arrays.asList(additionalLabels).iterator();
         while (l.hasNext()) {

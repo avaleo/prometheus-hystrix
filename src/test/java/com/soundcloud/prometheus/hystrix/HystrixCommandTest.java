@@ -3,6 +3,8 @@ package com.soundcloud.prometheus.hystrix;
 import com.netflix.hystrix.Hystrix;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
 import io.prometheus.client.CollectorRegistry;
+
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -92,11 +94,15 @@ public class HystrixCommandTest {
     @Test
     public void shouldIncrementTotalsForFailure() {
         // given
-        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram", true);
+        final TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram", true);
 
         // when
-        assertThatThrownBy(() ->
-                command.execute()).isExactlyInstanceOf(HystrixRuntimeException.class);
+        assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
+            @Override
+            public void call() throws Throwable {
+                command.execute();
+            }
+        }).isExactlyInstanceOf(HystrixRuntimeException.class);
 
         // then
         assertThat(CollectorRegistry.defaultRegistry

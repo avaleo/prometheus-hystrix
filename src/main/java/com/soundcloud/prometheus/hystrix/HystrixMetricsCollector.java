@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of a Prometheus Collector for Hystrix metrics.
@@ -52,7 +51,11 @@ public class HystrixMetricsCollector extends Collector {
         lock.writeLock().lock();
         try {
             Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
-            List<Value> values = gauges.computeIfAbsent(gauge, k -> new ArrayList<>());
+            List<Value> values = gauges.get(gauge);
+            if (values == null) {
+                values = new ArrayList<>();
+                gauges.put(gauge, values);
+            }
             values.add(new Value(labels, value));
         } finally {
             lock.writeLock().unlock();
@@ -68,7 +71,7 @@ public class HystrixMetricsCollector extends Collector {
             if(histogram == null) {
                 histogram = Histogram.build().name(name).help(helpDoc)
                         .labelNames(labels.keySet().toArray(new String[]{}))
-                        .exponentialBuckets(0.001, 1.31, 30)
+                        .exponentialBuckets(0.02, 2, 10)
                         .create();
                 histogram.register(registry);
                 histograms.put(name, histogram);
@@ -107,9 +110,12 @@ public class HystrixMetricsCollector extends Collector {
         lock.readLock().lock();
         try {
             List<MetricFamilySamples> samples = new LinkedList<>();
-            samples.addAll(gauges.entrySet().stream()
-                    .map(e -> e.getKey().toSamples(e.getValue()))
-                    .collect(Collectors.toList()));
+            List<MetricFamilySamples> list = new ArrayList<>();
+            for (Map.Entry<Gauge, List<Value>> e : gauges.entrySet()) {
+                MetricFamilySamples metricFamilySamples = e.getKey().toSamples(e.getValue());
+                list.add(metricFamilySamples);
+            }
+            samples.addAll(list);
             Enumeration<MetricFamilySamples> enumeration = registry.metricFamilySamples();
             while(enumeration.hasMoreElements()) {
                 samples.add(enumeration.nextElement());
@@ -131,10 +137,14 @@ public class HystrixMetricsCollector extends Collector {
         }
 
         public MetricFamilySamples toSamples(List<Value> values) {
-            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, values.stream()
-                    .map(v -> v.toSample(name))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList()));
+            List<MetricFamilySamples.Sample> list = new ArrayList<>();
+            for (Value v : values) {
+                MetricFamilySamples.Sample sample = v.toSample(name);
+                if (sample != null) {
+                    list.add(sample);
+                }
+            }
+            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, list);
         }
 
         @Override

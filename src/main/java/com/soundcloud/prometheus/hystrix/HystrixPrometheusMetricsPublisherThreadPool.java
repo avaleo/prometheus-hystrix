@@ -54,25 +54,85 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         delegate.initialize();
 
         String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
-        addGauge("thread_active_count", currentStateDoc, metrics::getCurrentActiveCount);
-        addGauge("completed_task_count", currentStateDoc, metrics::getCurrentCompletedTaskCount);
-        addGauge("largest_pool_size", currentStateDoc, metrics::getCurrentLargestPoolSize);
-        addGauge("total_task_count", currentStateDoc, metrics::getCurrentTaskCount);
-        addGauge("queue_size", currentStateDoc, metrics::getCurrentQueueSize);
+        addGauge("thread_active_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCurrentActiveCount();
+            }
+        });
+        addGauge("completed_task_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCurrentCompletedTaskCount();
+            }
+        });
+        addGauge("largest_pool_size", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCurrentLargestPoolSize();
+            }
+        });
+        addGauge("total_task_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCurrentTaskCount();
+            }
+        });
+        addGauge("queue_size", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCurrentQueueSize();
+            }
+        });
 
         String rollDoc = "Rolling count partitioned by pool_name.";
-        addGauge("rolling_max_active_threads", rollDoc, metrics::getRollingMaxActiveThreads);
-        addGauge("rolling_count_threads_executed", rollDoc, metrics::getRollingCountThreadsExecuted);
+        addGauge("rolling_max_active_threads", rollDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getRollingMaxActiveThreads();
+            }
+        });
+        addGauge("rolling_count_threads_executed", rollDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getRollingCountThreadsExecuted();
+            }
+        });
 
         String totalDoc = "Cumulative count partitioned by pool_name.";
-        addGauge("count_threads_executed", totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        addGauge("count_threads_executed", totalDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return HystrixPrometheusMetricsPublisherThreadPool.this.metrics.getCumulativeCountThreadsExecuted();
+            }
+        });
 
         if (exportProperties) {
             String doc = "Configuration property partitioned by pool_name.";
-            addGauge("property_value_core_pool_size", doc, () -> properties.coreSize().get());
-            addGauge("property_value_keep_alive_time_in_minutes", doc, () -> properties.keepAliveTimeMinutes().get());
-            addGauge("property_value_queue_size_rejection_threshold", doc, () -> properties.queueSizeRejectionThreshold().get());
-            addGauge("property_value_max_queue_size", doc, () -> properties.maxQueueSize().get());
+            addGauge("property_value_core_pool_size", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherThreadPool.this.properties.coreSize().get();
+                }
+            });
+            addGauge("property_value_keep_alive_time_in_minutes", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherThreadPool.this.properties.keepAliveTimeMinutes().get();
+                }
+            });
+            addGauge("property_value_queue_size_rejection_threshold", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherThreadPool.this.properties.queueSizeRejectionThreshold().get();
+                }
+            });
+            addGauge("property_value_max_queue_size", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return HystrixPrometheusMetricsPublisherThreadPool.this.properties.maxQueueSize().get();
+                }
+            });
         }
     }
 
