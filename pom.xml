@@ -39,7 +39,7 @@
         <url>https://github.com/ahus1/prometheus-hystrix/issues</url>
     </issueManagement>
     <scm>
-        <connection>scm:git:https://github.com:avaleo/prometheus-hystrix.git</connection>
+        <connection>scm:git:https://github.com/avaleo/prometheus-hystrix.git</connection>
         <tag>HEAD</tag>
     </scm>
     <dependencies>
